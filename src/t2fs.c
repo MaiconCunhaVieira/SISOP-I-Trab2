@@ -26,8 +26,7 @@ Maicon Vieira - 242275
 
 #define NUMERO_MAX_ARQUIVOS_ABERTOS 10
 typedef struct t2fs_superbloco SUPERBLOCO;
-typedef struct t2fs_record ARQUIVO;
-typedef struct t2fs_record DIRETORIO;
+typedef struct t2fs_record RECORD;
 
 // **************************************************************************
 // Structs
@@ -66,14 +65,74 @@ void init_file_system()
     //first_time_running = 0;
 }
 
+BYTE* read_bloco(int setor, int tamanho)
+{
+    BYTE* buffer = calloc(1, (SECTOR_SIZE * tamanho));
+    BYTE* buffer_pointer = buffer;
+
+    for(int i = 0; i < tamanho; i++){
+        if(read_sector(setor + i, buffer_pointer) == 0){
+            buffer_pointer += SECTOR_SIZE;
+        }
+        else {
+            free(buffer);
+            return NULL;
+        }
+    }
+
+    return buffer;
+}
+
+SUPERBLOCO* read_superbloco()
+{
+    BYTE* buffer;
+    SUPERBLOCO* superbloco;
+    int i = 0;
+
+    buffer = read_bloco(0, 1); // superbloco ocupa somente o bloco 0, portanto tem tamanho 1
+
+    if(buffer) {
+        superbloco = calloc(1, sizeof(SUPERBLOCO));
+
+        memcpy(&superbloco->id, buffer + i, 4); // campo id ocupa 4 bytes
+        i+=4;
+
+        memcpy(&superbloco->version, buffer + i, 2); // campo version ocupa 2 bytes
+        i+=2;
+
+        memcpy(&superbloco->superblockSize, buffer + i, 2); // campo superblockSize ocupa 2 bytes
+        i+=2;
+
+        memcpy(&superbloco->freeBlocksBitmapSize, buffer + i, 2);
+        i+=2;
+
+        memcpy(&superbloco->freeInodeBitmapSize, buffer + i, 2);
+        i+=2;
+
+        memcpy(&superbloco->inodeAreaSize, buffer + i, 2);
+        i+=2;
+
+        memcpy(&superbloco->blockSize, buffer + i, 2);
+        i+=2;
+
+        memcpy(&superbloco->diskSize, buffer+i, 4);
+        i+=4;
+
+        free(buffer);
+        return superbloco
+    }
+
+    return NULL;
+}
+
 int nome_correto(char *nome)
 {
-    if(strlen(nome) > MAX_FILE_NAME_SIZE){
+    if(strlen(nome) > MAX_FILE_NAME_SIZE){ // se tamanho do nome for maior do que o permitido, erro
         return 0;
     }
     else {
         for(int i = 0; i < strlen(nome); i++){
-            if(nome[i] < 0x21 || nome[i] > 0x7a){
+            if(nome[i] < 0x21 || nome[i] > 0x7a){ // se algum caractere do nome não estiver entre os caracteres permitidos, erro
                 return 0;
             }
         }
