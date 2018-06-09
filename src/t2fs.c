@@ -27,6 +27,7 @@ Maicon Vieira - 242275
 #define NUMERO_MAX_ARQUIVOS_ABERTOS 10
 typedef struct t2fs_superbloco SUPERBLOCO;
 typedef struct t2fs_record RECORD;
+typedef struct t2fs_inode INODE;
 
 // **************************************************************************
 // Structs
@@ -45,20 +46,112 @@ typedef struct dir_aberto {
     int aberto;
 } DIRETORIO_ABERTO;
 
+typedef struct t2fs_data {
+	int size;
+	int parentInode;
+	BYTE* data;
+} DATA;
+
+// Uma entrada de um descritor de diretorios
+// na pratica armazena um vetor de entradas de diretorios
+// o tamanho do vetor eh dado por size
+/*typedef struct t2fs_folder {
+	int size;
+	RECORD* entry;
+} DIRETORIO_ENTRADAS;*/
+
+// Uma entrada de um descritor de arquivos
+// que fica armazenada na tabela de arquivos abertos
+/*typedef struct t2fs_file {
+	DIRENT2 info;
+	char* path;
+	int cursor;
+	int parentInode;
+	int inodeNumber;
+	INODE* in;
+	DATA* dados;
+	DIRETORIO_ENTRADAS* directory;
+} DESCR_ARQUIVOS;*/
+
 // **************************************************************************
 // Variaveis globais
 
 int first_time_running = 1; // indica se eh a primeira vez que o sistema esta rodando
 char *caminho_atual; // indica qual o caminho que o sistema esta
-SUPERBLOCO superbloco;
-ARQUIVO_ABERTO arquivos_abertos[NUMERO_MAX_ARQUIVOS_ABERTOS]; // armazena os arquivos abertos (máximo de 10, como especificado)
-DIRETORIO_ABERTO dretorios_abertos[NUMERO_MAX_ARQUIVOS_ABERTOS]; // armazena os diretorios abertos
+SUPERBLOCO* superbloco = NULL;
+ARQUIVO_ABERTO* arquivos_abertos[NUMERO_MAX_ARQUIVOS_ABERTOS]; // armazena os arquivos abertos (mï¿½ximo de 10, como especificado)
+DIRETORIO_ABERTO* diretorios_abertos[NUMERO_MAX_ARQUIVOS_ABERTOS]; // armazena os diretorios abertos
+INODE* rootInode = NULL;
+DIRECTORY_RECORD * rootDirectory = NULL;
+int totalArqAbertos = 0;
 
+FILE * disk;
+
+// Variveis que armazenam a geometria do disco
+int inodeSectorStart;	// Setor onde se iniciam os inodes
+int dataSectorStart;	// Setor onde se iniciam os dados
+int blockSize;			// Tamanho do bloco (em setores)
+int blockSizeInBytes;	// Tamanho do bloco (em bytes)
+unsigned long long maxFileSize ;
 // **************************************************************************
 // Outras funcoes (auxiliares)
 
-void init_file_system()
+INODE* readInode(int inode)
 {
+	int i = 0;
+  int sectorNumber = 0;
+  int offset = 0;
+	BYTE* buffer;
+	INODE* in;
+  sectorNumber = inodeSectorStart + (inode / (SECTOR_SIZE/16));
+	offset = 16 * (inode % (SECTOR_SIZE/16));
+  buffer = read_bloco(sectorNumber, 1);
+  if (buffer)
+	{
+		in = calloc(1, sizeof(INODE));
+    memcpy(&in->blocksFileSize, buffer+i+offset, 4);
+		i += 4;
+    memcpy(&in->bytesFileSize, buffer+i+offset, 4);
+		i += 4;
+		memcpy(&in->dataPtr[0], buffer+i+offset, 4);
+		i += 4;
+		memcpy(&in->dataPtr[1], buffer+i+offset, 4);
+		i += 4;
+		memcpy(&in->singleIndPtr, buffer+i+offset, 4);
+		i += 4;
+		memcpy(&in->doubleIndPtr, buffer+i+offset, 4);
+		i += 4;
+    memcpy(&in->reservado[0], buffer+i+offset, 4);
+		i += 4;
+    memcpy(&in->reservado[1], buffer+i+offset, 4);
+		i += 4;
+		free(buffer);
+		return in;
+	}
+	return NULL;
+}
+
+int init_file_system()
+{
+    int i;
+    ARQUIVO_ABERTO* rootFile;
+    if (superbloco != NULL)
+      return 1;
+    superbloco = read_superbloco();
+    if (superbloco){
+      inodeSectorStart = superbloco->superblockSize + superbloco->freeBlocksBitmapSize + superbloco->freeInodeBitmapSize;
+      dataSectorStart = inodeSectorStart + superbloco->inodeAreaSize;
+      blockSize = superbloco->blockSize;
+      blockSizeInBytes = superbloco->blockSize * SECTOR_SIZE;
+      maxFileSize = (blockSizeInBytes*2) + ((blockSizeInBytes/4)*blockSizeInBytes) + ((blockSizeInBytes/4)*(blockSizeInBytes/4)*blockSizeInBytes);
+      rootInode = readInode(0);
+      for (i = 0; i < NUMERO_MAX_ARQUIVOS_ABERTOS; i++)
+		    arquivos_abertos[i] = NULL;
+      if (rootInode) {
+  			rootFile = calloc(1, sizeof(ARQUIVO_ABERTO));
+        
+      }
+    }
     //caminho_atual = malloc(sizeof(strlen("/")));
     //strcpy(caminho_atual, "/");
 
@@ -119,7 +212,7 @@ SUPERBLOCO* read_superbloco()
         i+=4;
 
         free(buffer);
-        return superbloco
+        return superbloco;
     }
 
     return NULL;
@@ -132,7 +225,7 @@ int nome_correto(char *nome)
     }
     else {
         for(int i = 0; i < strlen(nome); i++){
-            if(nome[i] < 0x21 || nome[i] > 0x7a){ // se algum caractere do nome não estiver entre os caracteres permitidos, erro
+            if(nome[i] < 0x21 || nome[i] > 0x7a){ // se algum caractere do nome nï¿½o estiver entre os caracteres permitidos, erro
                 return 0;
             }
         }
@@ -158,11 +251,11 @@ int identify2 (char *name, int size)
 
 FILE2 create2 (char *filename)
 {
-    if(first_time_running)
-        init_file_system();
+    if(!init_file_system)
+      return -1;
 
     if(nome_correto(filename)){
-        // verificar se não existe arquivo com mesmo nome
+        // verificar se nï¿½o existe arquivo com mesmo nome
 
         return -1;
     }
