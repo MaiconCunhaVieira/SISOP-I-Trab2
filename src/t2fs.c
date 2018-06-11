@@ -263,10 +263,24 @@ FILE2 create2 (char *filename)
         printf("ERRO: Nome incorreto.");
         return -1;
     }
+
+    /*fixPath(filename);*/
+
+    // Verificar se ha espaco entre arquivos abertos
+    for (i = 0; i < NUMERO_MAX_ARQUIVOS_ABERTOS; i++)
+        if (arquivos_abertos[i] == NULL)
+		break;
+	// Se nao ha espaco para novos arquivos abertos
+	if (i == NUMERO_MAX_ARQUIVOS_ABERTOS)
+		return -1;
+
+
 }
 
 int delete2 (char *filename)
 {
+    if(!init_file_system)
+      return -1;
     return -1;
 }
 
@@ -277,31 +291,98 @@ FILE2 open2 (char *filename)
 
 int close2 (FILE2 handle)
 {
+    if(!init_file_system)
+      return -1;
+
+    if (handle < 0 || handle >= NUMERO_MAX_ARQUIVOS_ABERTOS)
+      return -2;
+
+    if (arquivos_abertos[handle] == NULL)
+      return -3;
+
+    if (arquivos_abertos[handle]->info.fileType != TYPEVAL_REGULAR)
+      return -4;
+
     return -1;
 }
 
 int read2 (FILE2 handle, char *buffer, int size)
 {
+    if(!init_file_system)
+      return -1;
+
+    if (handle < 0 || handle >= NUMERO_MAX_ARQUIVOS_ABERTOS)
+      return -2;
+
+    if (arquivos_abertos[handle] == NULL)
+      return -3;
+
+    if (arquivos_abertos[handle]->info.fileType != TYPEVAL_REGULAR)
+      return -4;
+
     return -1;
 }
 
 int write2 (FILE2 handle, char *buffer, int size)
 {
+    if(!init_file_system)
+      return -1;
+
+    if (handle < 0 || handle >= NUMERO_MAX_ARQUIVOS_ABERTOS)
+      return -2;
+
+    if (arquivos_abertos[handle] == NULL)
+      return -3;
+
+    if (arquivos_abertos[handle]->info.fileType != TYPEVAL_REGULAR)
+      return -4;
+
     return -1;
 }
 
 int truncate2 (FILE2 handle)
 {
+    if(!init_file_system)
+      return -1;
+
+    if (handle < 0 || handle >= NUMERO_MAX_ARQUIVOS_ABERTOS)
+      return -2;
+
+    if (arquivos_abertos[handle] == NULL)
+      return -3;
+
+    if (arquivos_abertos[handle]->info.fileType != TYPEVAL_REGULAR)
+      return -4;
+
     return -1;
 }
 
 int seek2 (FILE2 handle, DWORD offset)
 {
-    return -1;
+    if(!init_file_system)
+      return -1;
+
+    if (handle < 0 || handle >= NUMERO_MAX_ARQUIVOS_ABERTOS)
+      return -2;
+
+    if (arquivos_abertos[handle] == NULL)
+      return -3;
+
+    if (arquivos_abertos[handle]->info.fileType != TYPEVAL_REGULAR)
+      return -4;
+
+    if (offset == -1)
+      arquivos_abertos[handle]->cursor = arquivos_abertos[handle]->info.fileSize + 1;
+    else
+      arquivos_abertos[handle]->cursor = offset;
+
+    return 0;
 }
 
 int mkdir2 (char *pathname)
 {
+    if(superbloco==NULL)
+      superbloco = read_superbloco();
     return -1;
 }
 
@@ -327,10 +408,34 @@ DIR2 opendir2 (char *pathname)
 
 int readdir2 (DIR2 handle, DIRENT2 *dentry)
 {
+    if(!init_file_system)
+      return -1;
+
+    if (handle < 0 || handle >= NUMERO_MAX_ARQUIVOS_ABERTOS)
+      return -2;
+
+    if (arquivos_abertos[handle] == NULL)
+      return -3;
+
+    if (arquivos_abertos[handle]->info.fileType != TYPEVAL_REGULAR)
+      return -4;
+
     return -1;
 }
 
 int closedir2 (DIR2 handle)
 {
+    if(!init_file_system)
+      return -1;
+
+    if (handle < 0 || handle >= NUMERO_MAX_ARQUIVOS_ABERTOS)
+      return -2;
+
+    if (arquivos_abertos[handle] == NULL)
+      return -3;
+
+    if (arquivos_abertos[handle]->info.fileType != TYPEVAL_REGULAR)
+      return -4;
+
     return -1;
 }
