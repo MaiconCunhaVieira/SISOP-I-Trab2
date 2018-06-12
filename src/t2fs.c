@@ -36,22 +36,21 @@ typedef struct dir_aberto DIRETORIO_ABERTO;
 // Structs
 
 struct arq_aberto {
-    DIRENT2 info;
+  DIRENT2 info;
 	char * path;
 	int cursor;
 	int parentInode;
 	int inodeNumber;
 	INODE * in;
 	DATA * dados;
-	//DIRECTORY_ENTRIES * directory;
-
+	DIRETORIO_ENTRADAS* diretorio;
 };
 
-struct dir_aberto {
+/*struct dir_aberto {
     struct t2fs_record diretorio;
     //int entrada_atual;
     int aberto;
-};
+};*/
 
 struct t2fs_data {
 	int size;
@@ -59,26 +58,10 @@ struct t2fs_data {
 	BYTE* data;
 };
 
-// Uma entrada de um descritor de diretorios
-// na pratica armazena um vetor de entradas de diretorios
-// o tamanho do vetor eh dado por size
-/*typedef struct t2fs_folder {
+typedef struct dir_aberto {
 	int size;
 	RECORD* entry;
-} DIRETORIO_ENTRADAS;*/
-
-// Uma entrada de um descritor de arquivos
-// que fica armazenada na tabela de arquivos abertos
-/*typedef struct t2fs_file {
-	DIRENT2 info;
-	char* path;
-	int cursor;
-	int parentInode;
-	int inodeNumber;
-	INODE* in;
-	DATA* dados;
-	DIRETORIO_ENTRADAS* directory;
-} DESCR_ARQUIVOS;*/
+} DIRETORIO_ENTRADAS;
 
 // **************************************************************************
 // Variaveis globais
@@ -168,14 +151,30 @@ int init_file_system()
             arquivos_abertos[i] = NULL;
         if (rootInode) {
   			rootFile = calloc(1, sizeof(ARQUIVO_ABERTO));
+        rootFile->cursor = 0;
+			  rootFile->path = calloc(2, sizeof(char));
+			sprintf(rootFile->path, "/");
+			rootFile->inodeNumber = 0;
+			rootFile->parentInode = 0;
+			rootFile->in = rootInode;
+		//	rootFile->dados = getInodeData(rootInode); //implementar funcao getInodeData
+		//	rootFile->diretorio = readDirectory(rootFile->dados); //implementar funcao readDirectory
+      sprintf(rootFile->info.name, "/");
+			rootFile->info.fileType = TYPEVAL_DIRETORIO;
+			rootFile->info.fileSize = rootFile->dados->size;
+			tabelaArquivosAbertos[0] = rootFile;
+			return 1;
+		}
+		return 0;
+	}
 
-      }
-    }
+	return 0;
+}
     //caminho_atual = malloc(sizeof(strlen("/")));
     //strcpy(caminho_atual, "/");
 
     //first_time_running = 0;
-}
+
 
 BYTE* read_bloco(int setor, int tamanho)
 {
