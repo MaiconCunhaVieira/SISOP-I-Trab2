@@ -229,6 +229,45 @@ SUPERBLOCO* read_superbloco()
     return NULL;
 }
 
+
+/**
+Funcoes para liberar estruturas
+*/
+
+void liberaDIRETORIO_ABERTO(DIRETORIO_ABERTO * ptr)
+{
+	if ( ptr )
+	{
+		if (ptr->entry)
+		free(ptr->entry);
+		free(ptr);
+	}
+}
+
+void liberaDATA(DATA * ptr)
+{
+	if ( ptr )
+	{
+		if (ptr->data)
+		free(ptr->data);
+		free(ptr);
+	}
+}
+
+void liberaARQUIVO_ABERTO(ARQUIVO_ABERTO * ptr)
+{
+	if (ptr)
+	{
+		if (ptr->path)
+		free(ptr->path);
+		if (ptr->in)
+		free(ptr->in);
+		liberaDATA(ptr->dados);
+		liberaDIRETORIO_ABERTO(ptr->diretorio);
+		free(ptr);
+	}
+}
+
 int nome_correto(char *nome)
 {
     if(strlen(nome) > MAX_FILE_NAME_SIZE){ // se tamanho do nome for maior do que o permitido, erro
@@ -313,7 +352,13 @@ int close2 (FILE2 handle)
     if (arquivos_abertos[handle]->info.fileType != TYPEVAL_REGULAR)
       return -4;
 
-    return -1;
+    liberaARQUIVO_ABERTO(arquivos_abertos[handle]);
+    
+    arquivos_abertos[handle] = NULL;
+
+    totalArqAbertos--;
+
+    return 0;
 }
 
 int read2 (FILE2 handle, char *buffer, int size)
@@ -330,7 +375,20 @@ int read2 (FILE2 handle, char *buffer, int size)
     if (arquivos_abertos[handle]->info.fileType != TYPEVAL_REGULAR)
       return -4;
 
-    return -1;
+    if (buffer == NULL || size < 0)
+      return -5;
+
+    if (arquivos_abertos[handle]->cursor >= arquivos_abertos[handle]->info.fileSize)
+      return 0;
+
+    if (arquivos_abertos[handle]->cursor + size > arquivos_abertos[handle]->info.fileSize)
+      size = arquivos_abertos[handle]->info.fileSize - arquivos_abertos[handle]->cursor;
+
+    memcpy(buffer, arquivos_abertos[handle]->dados->data + arquivos_abertos[handle]->cursor, size);
+
+    arquivos_abertos[handle]->cursor += size;
+
+    return size;
 }
 
 int write2 (FILE2 handle, char *buffer, int size)
@@ -430,7 +488,20 @@ int readdir2 (DIR2 handle, DIRENT2 *dentry)
     if (arquivos_abertos[handle]->info.fileType != TYPEVAL_REGULAR)
       return -4;
 
-    return -1;
+    c = arquivos_abertos[handle]->cursor;
+    if (c >= arquivos_abertos[handle]->diretorio->size)
+    {
+		arquivos_abertos[handle]->cursor = 0;
+		return -6;
+    }
+
+    strncpy(dentry->name, arquivos_abertos[handle]->diretorio->entry[c].name, NUMERO_MAX_ARQUIVOS_ABERTOS+1);
+
+    dentry->fileType = arquivos_abertos[handle]->diretorio->entry[c].TypeVal;
+
+    arquivos_abertos[handle]->cursor += 1;
+
+    return 0;
 }
 
 int closedir2 (DIR2 handle)
@@ -446,6 +517,13 @@ int closedir2 (DIR2 handle)
 
     if (arquivos_abertos[handle]->info.fileType != TYPEVAL_REGULAR)
       return -4;
+    /* incompleto
+    close2:
+    liberaARQUIVO_ABERTO(arquivos_abertos[handle]);
+    
+    arquivos_abertos[handle] = NULL;
+
+    totalArqAbertos--;*/
 
     return -1;
 }
